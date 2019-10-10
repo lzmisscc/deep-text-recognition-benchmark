@@ -16,6 +16,7 @@ from utils import CTCLabelConverter, AttnLabelConverter, Averager
 from dataset import hierarchical_dataset, AlignCollate, Batch_Balanced_Dataset
 from model import Model
 from test import validation
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -122,7 +123,7 @@ def train(opt):
     best_norm_ED = 1e+6
     i = start_iter
 
-    while(True):
+    while (True):
         # train part
         image_tensors, labels = train_dataset.get_batch()
         image = image_tensors.to(device)
@@ -147,7 +148,7 @@ def train(opt):
             # cost = criterion(preds, text, preds_size, length)
 
         else:
-            preds = model(image, text[:, :-1]) # align with Attention.forward
+            preds = model(image, text[:, :-1])  # align with Attention.forward
             target = text[:, 1:]  # without [GO] Symbol
             cost = criterion(preds.view(-1, preds.shape[-1]), target.contiguous().view(-1))
 
@@ -250,6 +251,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_channel', type=int, default=512,
                         help='the number of output channel of Feature extractor')
     parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
+    parser.add_argument('--ours', type=bool, default=True, help='Define ours character')
 
     opt = parser.parse_args()
 
@@ -264,7 +266,11 @@ if __name__ == '__main__':
     if opt.sensitive:
         # opt.character += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         opt.character = string.printable[:-6]  # same with ASTER setting (use 94 char).
+    """ Define ours character """
+    if opt.ours:
+        from alphabets import get_alphabets
 
+        opt.character = get_alphabets()
     """ Seed and GPU setting """
     # print("Random Seed: ", opt.manualSeed)
     random.seed(opt.manualSeed)

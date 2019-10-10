@@ -47,8 +47,10 @@ class Batch_Balanced_Dataset(object):
             indices = range(total_number_dataset)
             _dataset, _ = [Subset(_dataset, indices[offset - length:offset])
                            for offset, length in zip(_accumulate(dataset_split), dataset_split)]
-            print(f'num total samples of {selected_d}: {total_number_dataset} x {opt.total_data_usage_ratio} (total_data_usage_ratio) = {len(_dataset)}')
-            print(f'num samples of {selected_d} per batch: {opt.batch_size} x {float(batch_ratio_d)} (batch_ratio) = {_batch_size}')
+            print(
+                f'num total samples of {selected_d}: {total_number_dataset} x {opt.total_data_usage_ratio} (total_data_usage_ratio) = {len(_dataset)}')
+            print(
+                f'num samples of {selected_d} per batch: {opt.batch_size} x {float(batch_ratio_d)} (batch_ratio) = {_batch_size}')
             batch_size_list.append(str(_batch_size))
             Total_batch_size += _batch_size
 
@@ -90,7 +92,7 @@ def hierarchical_dataset(root, opt, select_data='/'):
     """ select_data='/' contains all sub-directory of root directory """
     dataset_list = []
     print(f'dataset_root:    {root}\t dataset: {select_data[0]}')
-    for dirpath, dirnames, filenames in os.walk(root+'/'):
+    for dirpath, dirnames, filenames in os.walk(root + '/'):
         if not dirnames:
             select_flag = False
             for selected_d in select_data:
@@ -142,7 +144,7 @@ class LmdbDataset(Dataset):
                     # By default, images containing characters which are not in opt.character are filtered.
                     # You can add [UNK] token to `opt.character` in utils.py instead of this filtering.
                     out_of_char = f'[^{self.opt.character}]'
-                    if re.search(out_of_char, label.lower()):
+                    if re.search(out_of_char, label):
                         continue
 
                     self.filtered_index_list.append(index)
@@ -180,12 +182,12 @@ class LmdbDataset(Dataset):
                     img = Image.new('L', (self.opt.imgW, self.opt.imgH))
                 label = '[dummy_label]'
 
-            if not self.opt.sensitive:
-                label = label.lower()
+            # if not self.opt.sensitive:
+            #     label = label.lower()
 
             # We only train and evaluate on alphanumerics (or pre-defined character set in train.py)
-            out_of_char = f'[^{self.opt.character}]'
-            label = re.sub(out_of_char, '', label)
+            # out_of_char = f'[^{self.opt.character}]'
+            # label = re.sub(out_of_char, '', label)
 
         return (img, label)
 
