@@ -69,7 +69,7 @@ class Model(nn.Module):
 
     def forward(self, input, text, is_train=True):
         """ Transformation stage """
-        if not self.stages['Trans'] == "None":
+        if not self.stages['Trans'] == None:
             input = self.Transformation(input)
 
         """ Feature extraction stage """

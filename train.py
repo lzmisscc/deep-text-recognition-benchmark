@@ -11,13 +11,14 @@ import torch.nn.init as init
 import torch.optim as optim
 import torch.utils.data
 import numpy as np
-
+import logging
 from utils import CTCLabelConverter, CTCLabelConverterForBaiduWarpctc, AttnLabelConverter, Averager
-from dataset import hierarchical_dataset, AlignCollate, Batch_Balanced_Dataset
+from dataset import LmdbDataset
 from model import Model
 from test import validation
+import tqdm
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+logging.basicConfig(level=logging.INFO,)
 
 def train(opt):
     """ dataset preparation """
@@ -26,22 +27,11 @@ def train(opt):
         print('Filtering the images whose label is longer than opt.batch_max_length')
         # see https://github.com/clovaai/deep-text-recognition-benchmark/blob/6593928855fb7abb999a99f428b3e4477d4ae356/dataset.py#L130
 
-    opt.select_data = opt.select_data.split('-')
-    opt.batch_ratio = opt.batch_ratio.split('-')
-    train_dataset = Batch_Balanced_Dataset(opt)
-
+    train_dataset = LmdbDataset(opt.train_data, opt)
     log = open(f'./saved_models/{opt.exp_name}/log_dataset.txt', 'a')
-    AlignCollate_valid = AlignCollate(
-        imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
-    valid_dataset, valid_dataset_log = hierarchical_dataset(
-        root=opt.valid_data, opt=opt)
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=opt.batch_size,
-        # 'True' to check training progress with validation function.
-        shuffle=True,
-        num_workers=int(opt.workers),
-        collate_fn=AlignCollate_valid, pin_memory=True)
-    log.write(valid_dataset_log)
+    # AlignCollate_valid = AlignCollate(
+    #     imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
+    valid_dataset = LmdbDataset(opt.valid_data, opt)
     print('-' * 80)
     log.write('-' * 80 + '\n')
     log.close()
@@ -147,8 +137,7 @@ def train(opt):
     best_accuracy = -1
     best_norm_ED = -1
     iteration = start_iter
-
-    while(True):
+    for _ in tqdm.tqdm(range(opt.num_iter)):
         # train part
         image_tensors, labels = train_dataset.get_batch()
         image = image_tensors.to(device)
@@ -182,14 +171,14 @@ def train(opt):
 
         # validation part
         # To see training progress, we also conduct validation when 'iteration == 0'
-        if (iteration + 1) % opt.valInterval == 0 or iteration == 0:
+        if (iteration + 1) % opt.valInterval == 0:
             elapsed_time = time.time() - start_time
             # for log
             with open(f'./saved_models/{opt.exp_name}/log_train.txt', 'a') as log:
                 model.eval()
                 with torch.no_grad():
                     valid_loss, current_accuracy, current_norm_ED, preds, confidence_score, labels, infer_time, length_of_data = validation(
-                        model, criterion, valid_loader, converter, opt)
+                        model, criterion, valid_dataset, converter, opt)
                 model.train()
 
                 # training loss and validation loss
@@ -217,7 +206,7 @@ def train(opt):
                 dashed_line = '-' * 80
                 head = f'{"Ground Truth":25s} | {"Prediction":25s} | Confidence Score & T/F'
                 predicted_result_log = f'{dashed_line}\n{head}\n{dashed_line}\n'
-                for gt, pred, confidence in zip(labels[:5], preds[:5], confidence_score[:5]):
+                for gt, pred, confidence in zip(labels[:15], preds[:15], confidence_score[:15]):
                     if 'Attn' in opt.Prediction:
                         gt = gt[:gt.find('[s]')]
                         pred = pred[:pred.find('[s]')]
@@ -226,6 +215,7 @@ def train(opt):
                 predicted_result_log += f'{dashed_line}'
                 print(predicted_result_log)
                 log.write(predicted_result_log + '\n')
+
 
         # save model per 1e+5 iter.
         if (iteration + 1) % 1e+5 == 0:
@@ -249,10 +239,10 @@ if __name__ == '__main__':
     os.makedirs(f'./saved_models/{opt.exp_name}', exist_ok=True)
 
     """ vocab / character number configuration """
-    if opt.sensitive:
-        # opt.character += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        # same with ASTER setting (use 94 char).
-        opt.character = string.printable[:-6]
+    # if opt.sensitive:
+    #     # opt.character += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    #     # same with ASTER setting (use 94 char).
+    #     opt.character = string.printable[:-6]
 
     """ Seed and GPU setting """
     # print("Random Seed: ", opt.manualSeed)

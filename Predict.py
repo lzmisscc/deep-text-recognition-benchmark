@@ -1,15 +1,49 @@
 import string
 import argparse
-
+import uuid
 import torch
 import torch.backends.cudnn as cudnn
 import torch.utils.data
 import torch.nn.functional as F
-
+from PIL import Image
 from utils import CTCLabelConverter, AttnLabelConverter
-from dataset import LmdbDataset
+# from dataset import LmdbDataset
 from model import Model
+from torchvision import transforms
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+compose = transforms.Compose([
+    transforms.Resize(32),
+    transforms.Grayscale(),
+    transforms.ToTensor(),
+    transforms.Normalize(0.5, 0.5)
+])
+with open("../table_ocr/abs_val.txt", "r") as f:
+    lines = f.readlines()
+
+names,labels = [], []
+for line in lines:
+    name, label = line.strip("\n").split("\t")
+    names.append(name), labels.append(label)
+
+def pre_pre(img, opt):
+    import math
+    image = img
+    w, h = image.size
+    # name = uuid.uuid4().hex
+    # image.save(f"VIS/{name}-gt.jpg")
+    ratio = w / float(h)
+    if math.ceil(opt.imgH * ratio) <= opt.imgW:
+        resized_w = opt.imgW
+        resized_image = image.resize(
+            (resized_w, opt.imgH), Image.BICUBIC)
+
+        new_PAD = Image.new(size=(opt.imgW, opt.imgH), color=(255),mode='L')
+        new_PAD.paste(resized_image, (0,0))
+        img = new_PAD  
+        # img.save(f"VIS/{name}.jpg") 
+        return img
+    return image
 
 
 def demo(opt):
@@ -33,11 +67,19 @@ def demo(opt):
     model.load_state_dict(torch.load(opt.saved_model, map_location=device))
 
     # prepare data. two demo images from https://github.com/bgshih/crnn#run-demo
-    demo_loader = LmdbDataset(root=opt.valid_data, opt=opt).get_batch
+    
     model.eval()
     with torch.no_grad():
-        for image_tensors, image_path_list in [demo_loader() for i in range(2)]:
+        head = f'{"image_path":25s}\t{"predicted_labels":25s}\t{"T/F":5s}\tconfidence score'
+        dashed_line = '-' * 80
+        print(f'{dashed_line}\n{head}\n{dashed_line}')
+        for image_tensors, image_path_list in zip(names, labels):
+            im = Image.open(image_tensors)
+            im = pre_pre(im, opt)
+            image_tensors = compose(im)
+            image_tensors = torch.unsqueeze(image_tensors, 0).float()
             batch_size = image_tensors.size(0)
+            image_path_list = [image_path_list, ]
             image = image_tensors.to(device)
             # For max length prediction
             length_for_pred = torch.IntTensor([opt.batch_max_length] * batch_size).to(device)
@@ -61,10 +103,7 @@ def demo(opt):
 
 
             log = open(f'./log_demo_result.txt', 'a')
-            dashed_line = '-' * 80
-            head = f'{"image_path":25s}\t{"predicted_labels":25s}\t{"T/F":5s}\tconfidence score'
-            
-            print(f'{dashed_line}\n{head}\n{dashed_line}')
+
             log.write(f'{dashed_line}\n{head}\n{dashed_line}\n')
 
             preds_prob = F.softmax(preds, dim=2)
@@ -84,37 +123,10 @@ def demo(opt):
             log.close()
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--image_folder', required=True, help='path to image_folder which contains text images')
-    # parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-    # parser.add_argument('--batch_size', type=int, default=192, help='input batch size')
-    # parser.add_argument('--saved_model', required=True, help="path to saved_model to evaluation")
-    # """ Data processing """
-    # parser.add_argument('--batch_max_length', type=int, default=25, help='maximum-label-length')
-    # parser.add_argument('--imgH', type=int, default=32, help='the height of the input image')
-    # parser.add_argument('--imgW', type=int, default=100, help='the width of the input image')
-    # parser.add_argument('--rgb', action='store_true', help='use rgb input')
-    # parser.add_argument('--character', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz', help='character label')
-    # parser.add_argument('--sensitive', action='store_true', help='for sensitive character mode')
-    # parser.add_argument('--PAD', action='store_true', help='whether to keep ratio then pad for image resize')
-    # """ Model Architecture """
-    # parser.add_argument('--Transformation', type=str, required=True, help='Transformation stage. None|TPS')
-    # parser.add_argument('--FeatureExtraction', type=str, required=True, help='FeatureExtraction stage. VGG|RCNN|ResNet')
-    # parser.add_argument('--SequenceModeling', type=str, required=True, help='SequenceModeling stage. None|BiLSTM')
-    # parser.add_argument('--Prediction', type=str, required=True, help='Prediction stage. CTC|Attn')
-    # parser.add_argument('--num_fiducial', type=int, default=20, help='number of fiducial points of TPS-STN')
-    # parser.add_argument('--input_channel', type=int, default=1, help='the number of input channel of Feature extractor')
-    # parser.add_argument('--output_channel', type=int, default=512,
-    #                     help='the number of output channel of Feature extractor')
-    # parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
-
-    # opt = parser.parse_args()
     from config import opt
-    """ vocab / character number configuration """
-    # if opt.sensitive:
-    #     opt.character = string.printable[:-6]  # same with ASTER setting (use 94 char).
     opt.saved_model = "saved_models/Weight/best_accuracy.pth"
-    # opt.batch_size = 1
+    opt.batch_size = 1
+    opt.imgW = 32
     cudnn.benchmark = True
     cudnn.deterministic = True
     opt.num_gpu = torch.cuda.device_count()

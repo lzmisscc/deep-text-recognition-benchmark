@@ -12,7 +12,7 @@ import numpy as np
 from nltk.metrics.distance import edit_distance
 
 from utils import CTCLabelConverter, AttnLabelConverter, Averager
-from dataset import hierarchical_dataset, AlignCollate
+from dataset import LmdbDataset
 from model import Model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -41,14 +41,11 @@ def benchmark_all_eval(model, criterion, converter, opt, calculate_infer_time=Fa
     print(dashed_line)
     log.write(dashed_line + '\n')
     for eval_data in eval_data_list:
-        eval_data_path = os.path.join(opt.eval_data, eval_data)
-        AlignCollate_evaluation = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
-        eval_data, eval_data_log = hierarchical_dataset(root=eval_data_path, opt=opt)
+        eval_data, eval_data_log = LmdbDataset(root=opt.valid_data, opt=opt)
         evaluation_loader = torch.utils.data.DataLoader(
             eval_data, batch_size=evaluation_batch_size,
             shuffle=False,
-            num_workers=int(opt.workers),
-            collate_fn=AlignCollate_evaluation, pin_memory=True)
+            num_workers=int(opt.workers), pin_memory=True)
 
         _, accuracy_by_best_model, norm_ED_by_best_model, _, _, _, infer_time, length_of_data = validation(
             model, criterion, evaluation_loader, converter, opt)
@@ -85,8 +82,9 @@ def validation(model, criterion, evaluation_loader, converter, opt):
     length_of_data = 0
     infer_time = 0
     valid_loss_avg = Averager()
+    for i in range(1):
+        image_tensors, labels = evaluation_loader.get_batch()
 
-    for i, (image_tensors, labels) in enumerate(evaluation_loader):
         batch_size = image_tensors.size(0)
         length_of_data = length_of_data + batch_size
         image = image_tensors.to(device)
@@ -144,14 +142,6 @@ def validation(model, criterion, evaluation_loader, converter, opt):
                 pred = pred[:pred_EOS]  # prune after "end of sentence" token ([s])
                 pred_max_prob = pred_max_prob[:pred_EOS]
 
-            # To evaluate 'case sensitive model' with alphanumeric and case insensitve setting.
-            if opt.sensitive and opt.data_filtering_off:
-                pred = pred.lower()
-                gt = gt.lower()
-                alphanumeric_case_insensitve = '0123456789abcdefghijklmnopqrstuvwxyz'
-                out_of_alphanumeric_case_insensitve = f'[^{alphanumeric_case_insensitve}]'
-                pred = re.sub(out_of_alphanumeric_case_insensitve, '', pred)
-                gt = re.sub(out_of_alphanumeric_case_insensitve, '', gt)
 
             if pred == gt:
                 n_correct += 1
@@ -226,13 +216,12 @@ def test(opt):
             benchmark_all_eval(model, criterion, converter, opt)
         else:
             log = open(f'./result/{opt.exp_name}/log_evaluation.txt', 'a')
-            AlignCollate_evaluation = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
-            eval_data, eval_data_log = hierarchical_dataset(root=opt.eval_data, opt=opt)
+            eval_data, eval_data_log = LmdbDataset(root=opt.valid_data, opt=opt)
+
             evaluation_loader = torch.utils.data.DataLoader(
                 eval_data, batch_size=opt.batch_size,
                 shuffle=False,
-                num_workers=int(opt.workers),
-                collate_fn=AlignCollate_evaluation, pin_memory=True)
+                num_workers=int(opt.workers), pin_memory=True)
             _, accuracy_by_best_model, _, _, _, _, _, _ = validation(
                 model, criterion, evaluation_loader, converter, opt)
             log.write(eval_data_log)
