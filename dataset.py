@@ -15,7 +15,7 @@ import torchvision.transforms as transforms
 import random
 import logging
 from torchvision.transforms.transforms import Grayscale, Resize
-
+from aug_1209 import aug, iaa
 
 class LmdbDataset(Dataset):
 
@@ -124,6 +124,13 @@ class LmdbDataset(Dataset):
             except IOError:
                 return self.__getitem__(random.choice(range(len(self))))
             image = img
+            
+            if 'train' in self.root and random.choice([0,1])==1:
+                g = iaa.Sequential(random.choice(aug))
+                image = np.array(image, dtype=np.uint8)
+                image = g(image)
+                image = Image.fromarray(image)
+
             w, h = image.size
 
             ratio = w / float(h)
