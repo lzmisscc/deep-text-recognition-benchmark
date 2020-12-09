@@ -16,7 +16,7 @@ compose = transforms.Compose([
     transforms.Resize(32),
     transforms.Grayscale(),
     transforms.ToTensor(),
-    transforms.Normalize(0.5, 0.5)
+    transforms.Normalize(0.88, 0.18)
 ])
 with open("../table_ocr/abs_val.txt", "r") as f:
     lines = f.readlines()
@@ -123,7 +123,7 @@ def demo(opt):
             log.close()
 
 if __name__ == '__main__':
-    from config import opt
+    from CONFIG2TRAIN.config import opt
     opt.saved_model = "saved_models/Weight/best_accuracy.pth"
     opt.batch_size = 1
     opt.imgW = 32

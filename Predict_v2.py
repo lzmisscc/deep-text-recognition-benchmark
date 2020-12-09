@@ -13,7 +13,7 @@ compose = transforms.Compose([
     transforms.Resize(32),
     transforms.Grayscale(),
     transforms.ToTensor(),
-    transforms.Normalize(0.5, 0.5)
+    transforms.Normalize(0.88, 0.18)
 ])
 
 
@@ -158,7 +158,11 @@ def index_decode(index_encode):
     return ''.join(res)
 
 if __name__ == '__main__':
-    from config import opt
+    from CONFIG2TRAIN.config import opt
+    # from CONFIG2TRAIN.seq2seq import opt
+    # from CONFIG2TRAIN.seq2seq_attn import opt
+    # from CONFIG2TRAIN.attention import opt
+
     from eval import Ev
     import time
     import os
@@ -166,7 +170,7 @@ if __name__ == '__main__':
 
     ev = Ev()
     run = Predict().run
-    opt.saved_model = "saved_models/Weight/best_accuracy.pth"
+    # opt.saved_model = "saved_models/Weight/best_accuracy.pth"
     opt.batch_size = 1
     opt.imgW = 32
     cudnn.benchmark = True
@@ -182,6 +186,6 @@ if __name__ == '__main__':
         start = time.time()
         pre,conf = run(im)
         ev.count(value, pre)
-        print(f"{value}\t{pre}")
+        print(f"{value}\t{pre}\t{value==pre}")
         print(f"{time.time()-start:.2f}\t{ev.socre()}")
 

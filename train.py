@@ -229,7 +229,10 @@ def train(opt):
 
 
 if __name__ == '__main__':
-    from config import opt
+    from CONFIG2TRAIN.config import opt
+    from CONFIG2TRAIN.attention import opt
+    # from CONFIG2TRAIN.seq2seq import opt
+    from CONFIG2TRAIN.seq2seq_attn import opt
     opt.sensitive = True
     if not opt.exp_name:
         opt.exp_name = f'{opt.Transformation}-{opt.FeatureExtraction}-{opt.SequenceModeling}-{opt.Prediction}'

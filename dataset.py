@@ -70,11 +70,20 @@ class LmdbDataset(Dataset):
 
                 self.nSamples = len(self.filtered_index_list)
             self.compose = transforms.Compose([
-                transforms.Resize((self.opt.imgH)),
+                transforms.Resize((int(self.opt.imgH*1.05), int(self.opt.imgW*1.05))),
+                transforms.RandomCrop((self.opt.imgH, self.opt.imgW)),
+                transforms.RandomRotation(degrees=(-2, 2),fill=255),
                 transforms.Grayscale(),
                 transforms.ToTensor(),
-                transforms.Normalize(0.5, 0.5)
+                transforms.Normalize(0.88, 0.18)
             ])
+            if 'val' in root:
+                self.compose = transforms.Compose([
+                    transforms.Resize((self.opt.imgH)),
+                    transforms.Grayscale(),
+                    transforms.ToTensor(),
+                    transforms.Normalize(0.88, 0.18)
+                ])
 
 
     def __len__(self):
@@ -119,7 +128,7 @@ class LmdbDataset(Dataset):
 
             ratio = w / float(h)
             if math.ceil(self.opt.imgH * ratio) >= self.opt.imgW:
-                if math.ceil(self.opt.imgH * ratio) > 1.5 * self.opt.imgW:
+                if math.ceil(self.opt.imgH * ratio) > 1.8 * self.opt.imgW:
                     return self.__getitem__(random.choice(range(len(self))))
                 else:
                     resized_w = self.opt.imgW

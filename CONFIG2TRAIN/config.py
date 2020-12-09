@@ -8,10 +8,10 @@ opt = Dict()
 opt.exp_name = "Weight"
 # parser.add_argument('--train_data', required=True,
 #                     help='path to training dataset')
-opt.train_data = "vietocr/train_data"
+opt.train_data = "table_lmdb_dataset/train"
 # parser.add_argument('--valid_data', required=True,
 #                     help='path to validation dataset')
-opt.valid_data = "vietocr/valid_data"
+opt.valid_data = "table_lmdb_dataset/val"
 # parser.add_argument('--manualSeed', type=int,
 #                     default=1111, help='for random seed setting')
 opt.manualSeed = 11111
@@ -114,3 +114,4 @@ opt.hidden_size = 256
 #                     help='the size of the LSTM hidden state')
 opt = Config(opt,)
 logging.warning(opt.character)
+#  Base Config
