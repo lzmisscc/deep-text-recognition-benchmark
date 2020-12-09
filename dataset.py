@@ -57,7 +57,7 @@ class LmdbDataset(Dataset):
                         # print(f'The length of the label is longer than max_length: length
                         # {len(label)}, {label} in dataset {self.root}')
                         continue
-                    if len(label) < 3:
+                    if len(label) <= 1:
                         continue
                     
                     # By default, images containing characters which are not in opt.character are filtered.
@@ -124,7 +124,7 @@ class LmdbDataset(Dataset):
             except IOError:
                 return self.__getitem__(random.choice(range(len(self))))
             image = img
-            
+
             if 'train' in self.root and random.choice([0,1])==1:
                 g = iaa.Sequential(random.choice(aug))
                 image = np.array(image, dtype=np.uint8)
