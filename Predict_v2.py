@@ -1,4 +1,5 @@
 import uuid
+from numpy.core.defchararray import decode
 import torch
 import torch.backends.cudnn as cudnn
 import torch.utils.data
@@ -88,7 +89,7 @@ class Predict:
 
                     # calculate confidence score (= multiply of pred_max_prob)
                     confidence_score = pred_max_prob.cumprod(dim=0)[-1]
-                    pred = index_decode(pred)
+                    # pred = index_decode(pred)
                     return pred, confidence_score
 
 
@@ -161,13 +162,14 @@ if __name__ == '__main__':
     from CONFIG2TRAIN.config import opt
     # from CONFIG2TRAIN.seq2seq import opt
     # from CONFIG2TRAIN.seq2seq_attn import opt
-    # from CONFIG2TRAIN.attention import opt
+    from CONFIG2TRAIN.attention import opt
 
     from eval import Ev
     import time
     import os
     import os.path as osp
-
+    import re
+    import tqdm
     ev = Ev()
     run = Predict().run
     # opt.saved_model = "saved_models/Weight/best_accuracy.pth"
@@ -176,16 +178,31 @@ if __name__ == '__main__':
     cudnn.benchmark = True
     cudnn.deterministic = True
     opt.num_gpu = torch.cuda.device_count()
+    flag = False
+    print(f"{flag}")
+
 
     table_ocr_txt_path = "../table_ocr/filter_val.txt"
     with open(table_ocr_txt_path, "r") as f:
         gt_lines = f.readlines()
-    for index, line in enumerate(gt_lines):
+    tq = tqdm.tqdm(gt_lines)
+    for index, line in enumerate(tq):
         name, value = line.strip("\n").split("\t")
         im = Image.open(osp.join("../table_ocr/data/val", name))
         start = time.time()
         pre,conf = run(im)
+        if flag:
+            value = re.sub("<b>", "粗", value)
+            value = re.sub("</b>", "细", value)
+            value = re.sub("<i>", "斜", value)
+            value = re.sub("</i>", "直", value)
+            pre = re.sub("♡", "", pre)
+            pre = re.sub("卐", "", pre)
+        else:
+            pre = index_decode(pre)
         ev.count(value, pre)
-        print(f"{value}\t{pre}\t{value==pre}")
-        print(f"{time.time()-start:.2f}\t{ev.socre()}")
+        # print(f"{value}\t{pre}\t{value==pre}")
+        # print(f"{time.time()-start:.2f}\t{ev.socre()}")
+        res = ev.socre()
+        tq.set_description(f"char:{res['char_acc']*100:.3f} | seq:{res['seq_acc']*100:.3f}")
 

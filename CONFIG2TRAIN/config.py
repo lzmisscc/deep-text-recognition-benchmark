@@ -50,7 +50,7 @@ opt.rho = 0.95
 opt.eps = 1e-8
 # parser.add_argument('--grad_clip', type=float, default=5,
 #                     help='gradient clipping value. default=5')
-opt.grad_clip = 5
+opt.grad_clip = 50
 # parser.add_argument('--baiduCTC', action='store_true',
 #                     help='for data_filtering_off mode')
 opt.baiduCTC = False
@@ -84,7 +84,7 @@ opt.sensitive = True
 opt.PAD = False
 # parser.add_argument('--PAD', action='store_true',
 #                     help='whether to keep ratio then pad for image resize')
-opt.data_filtering_off = False
+opt.data_filtering_off = True
 # parser.add_argument('--data_filtering_off',
 #                     action='store_true', help='for data_filtering_off mode')
 # """ Model Architecture """

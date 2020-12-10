@@ -2,6 +2,8 @@ from CONFIG2TRAIN.config import opt
 opt.exp_name = "Seq2Seq_Attn"
 opt.Prediction = "Attn"
 opt.SequenceModeling = "BiLSTM"
+opt.data_filtering_off = True
+opt.grad_clip = 50
 
 opt.saved_model = "saved_models/Seq2Seq_Attn/best_norm_ED.pth"
 # opt.saved_model = ""
