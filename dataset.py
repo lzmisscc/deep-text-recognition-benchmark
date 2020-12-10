@@ -17,6 +17,13 @@ import logging
 from torchvision.transforms.transforms import Grayscale, Resize
 from aug_1209 import aug, iaa
 
+
+def re_f(label, char):
+    for i in label:
+        if i not in char:
+            return True
+    return False
+
 class LmdbDataset(Dataset):
 
     def __init__(self, root, opt):
@@ -25,6 +32,7 @@ class LmdbDataset(Dataset):
         self.opt = opt
         self.env = lmdb.open(root, max_readers=32, readonly=True,
                              lock=False, readahead=False, meminit=False)
+        self.out_of_char = re.compile(f'[^{self.opt.character}]')
         if not self.env:
             print('cannot create lmdb from %s' % (root))
             sys.exit(0)
@@ -62,9 +70,11 @@ class LmdbDataset(Dataset):
                     
                     # By default, images containing characters which are not in opt.character are filtered.
                     # You can add [UNK] token to `opt.character` in utils.py instead of this filtering.
-                    out_of_char = f'[^{self.opt.character}]'
-                    if re.search(out_of_char, label):
+                    # if re.search(self.out_of_char, label):
+                    #     continue
+                    if re_f(label, opt.character):
                         continue
+                    
 
                     self.filtered_index_list.append(index)
 
@@ -115,6 +125,12 @@ class LmdbDataset(Dataset):
             buf = six.BytesIO()
             buf.write(imgbuf)
             buf.seek(0)
+
+
+            if 'fliter_b_i' in self.opt:
+                label = re.sub("卐", "", label)
+                label = re.sub("♡", "", label)
+
             try:
                 if self.opt.rgb:
                     img = Image.open(buf).convert('RGB')  # for color image
@@ -126,10 +142,13 @@ class LmdbDataset(Dataset):
             image = img
 
             if 'train' in self.root and random.choice([0,1])==1:
+                image = Image.open(buf).convert('RGB')
                 g = iaa.Sequential(random.choice(aug))
                 image = np.array(image, dtype=np.uint8)
-                image = g(image)
+                image = g(images=[image])[0]
                 image = Image.fromarray(image)
+                image = Image.open(buf).convert('L')
+
 
             w, h = image.size
 

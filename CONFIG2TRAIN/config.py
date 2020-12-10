@@ -84,7 +84,7 @@ opt.sensitive = True
 opt.PAD = False
 # parser.add_argument('--PAD', action='store_true',
 #                     help='whether to keep ratio then pad for image resize')
-opt.data_filtering_off = True
+opt.data_filtering_off = False
 # parser.add_argument('--data_filtering_off',
 #                     action='store_true', help='for data_filtering_off mode')
 # """ Model Architecture """
@@ -113,5 +113,4 @@ opt.hidden_size = 256
 # parser.add_argument('--hidden_size', type=int, default=256,
 #                     help='the size of the LSTM hidden state')
 opt = Config(opt,)
-logging.warning(opt.character)
 #  Base Config

@@ -8,6 +8,13 @@ from PIL import Image
 from utils import CTCLabelConverter, AttnLabelConverter
 from model import Model
 from torchvision import transforms
+import distance
+import logging
+import time
+logging.basicConfig(filename="./Predict.log", level=logging.INFO, filemode="w")
+date = time.strftime('%y-%m-%d-%H-%M-%A')
+logging.info(f"Date:{date}")
+logging.info(f"value \t: pre \t: distance")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 compose = transforms.Compose([
@@ -162,7 +169,7 @@ if __name__ == '__main__':
     from CONFIG2TRAIN.config import opt
     # from CONFIG2TRAIN.seq2seq import opt
     # from CONFIG2TRAIN.seq2seq_attn import opt
-    from CONFIG2TRAIN.attention import opt
+    # from CONFIG2TRAIN.attention import opt
 
     from eval import Ev
     import time
@@ -188,7 +195,8 @@ if __name__ == '__main__':
     tq = tqdm.tqdm(gt_lines)
     for index, line in enumerate(tq):
         name, value = line.strip("\n").split("\t")
-        im = Image.open(osp.join("../table_ocr/data/val", name))
+        filename = osp.join("../table_ocr/data/val", name)
+        im = Image.open(filename)
         start = time.time()
         pre,conf = run(im)
         if flag:
@@ -204,5 +212,7 @@ if __name__ == '__main__':
         # print(f"{value}\t{pre}\t{value==pre}")
         # print(f"{time.time()-start:.2f}\t{ev.socre()}")
         res = ev.socre()
-        tq.set_description(f"char:{res['char_acc']*100:.3f} | seq:{res['seq_acc']*100:.3f}")
-
+        tq.set_description(f"char:{res['char_acc']*100:.3f} | seq:{res['seq_acc']*100:.3f} | {value==pre}")
+        if value != pre:
+            logging.info(f"{value} : {pre} : {distance.levenshtein(pre, value)} : filename:{filename}")
+        
