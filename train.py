@@ -235,7 +235,7 @@ if __name__ == '__main__':
     # from CONFIG2TRAIN.seq2seq_attn import opt
     # from CONFIG2TRAIN.char_100_max_length_50 import opt
     from CONFIG2TRAIN.char_100_max_length_50_fliter_b_i import opt
-    
+
     opt.sensitive = True
     if not opt.exp_name:
         opt.exp_name = f'{opt.Transformation}-{opt.FeatureExtraction}-{opt.SequenceModeling}-{opt.Prediction}'

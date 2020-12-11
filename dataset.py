@@ -18,18 +18,18 @@ from torchvision.transforms.transforms import Grayscale, Resize
 from aug_1209 import aug, iaa
 
 
-def re_f(label, char):
-    for i in label:
-        if i not in char:
-            return True
-    return False
 
 class LmdbDataset(Dataset):
+    def set_(self, set_A):
+        if len(set_A) == len(self.char_set & set_A):
+            return False
+        return True
 
     def __init__(self, root, opt):
 
         self.root = root
         self.opt = opt
+        self.char_set = set(self.opt.character)
         self.env = lmdb.open(root, max_readers=32, readonly=True,
                              lock=False, readahead=False, meminit=False)
         self.out_of_char = re.compile(f'[^{self.opt.character}]')
@@ -56,6 +56,9 @@ class LmdbDataset(Dataset):
                 see https://github.com/clovaai/deep-text-recognition-benchmark/blob/dff844874dbe9e0ec8c5a52a7bd08c7f20afe704/test.py#L137-L144
                 """
                 self.filtered_index_list = []
+                super_length = 0
+                down_graw_length = 0
+                not_in_character = 0
                 for index in range(self.nSamples):
                     index += 1  # lmdb starts with 1
                     label_key = 'label-%09d'.encode() % index
@@ -64,20 +67,24 @@ class LmdbDataset(Dataset):
                     if len(label) > self.opt.batch_max_length:
                         # print(f'The length of the label is longer than max_length: length
                         # {len(label)}, {label} in dataset {self.root}')
+                        super_length += 1
                         continue
-                    if len(label) <= 1:
-                        continue
+                    if "batch_min_length" in self.opt:
+                        if len(label) <= self.opt.batch_min_length:
+                            down_graw_length += 1
+                            continue
                     
                     # By default, images containing characters which are not in opt.character are filtered.
                     # You can add [UNK] token to `opt.character` in utils.py instead of this filtering.
                     # if re.search(self.out_of_char, label):
                     #     continue
-                    if re_f(label, opt.character):
+                    if self.set_(set(label)):
+                        not_in_character += 1
                         continue
                     
 
                     self.filtered_index_list.append(index)
-
+                logging.warn(f"{self.root}-过滤数据：{(1-len(self.filtered_index_list) / self.nSamples) * 100:.2f}%-超长数据：{super_length/self.nSamples*100:.2f}%-超短数据：{down_graw_length/self.nSamples*100:.2f}%-多余字符：{not_in_character/self.nSamples*100:.2f}%")
                 self.nSamples = len(self.filtered_index_list)
             self.compose = transforms.Compose([
                 transforms.Resize((int(self.opt.imgH*1.05), int(self.opt.imgW*1.05))),
@@ -142,19 +149,18 @@ class LmdbDataset(Dataset):
             image = img
 
             if 'train' in self.root and random.choice([0,1])==1:
-                image = Image.open(buf).convert('RGB')
-                g = iaa.Sequential(random.choice(aug))
+                image = image.convert('RGB')
                 image = np.array(image, dtype=np.uint8)
-                image = g(images=[image])[0]
+                image = aug(images=[image])[0]
                 image = Image.fromarray(image)
-                image = Image.open(buf).convert('L')
+                image = image.convert('L')
 
 
             w, h = image.size
 
             ratio = w / float(h)
             if math.ceil(self.opt.imgH * ratio) >= self.opt.imgW:
-                if math.ceil(self.opt.imgH * ratio) > 1.8 * self.opt.imgW:
+                if math.ceil(self.opt.imgH * ratio) > 3 * self.opt.imgW:
                     return self.__getitem__(random.choice(range(len(self))))
                 else:
                     resized_w = self.opt.imgW

@@ -2,8 +2,8 @@ import jsonlines
 import os.path as osp
 import os
 import json
-from string_distance.edit_distance import levenshtein
-
+# from string_distance.edit_distance import levenshtein
+from distance import levenshtein
 class Ev:
     def __init__(self) -> None:
         self.max_length = 0

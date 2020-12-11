@@ -166,10 +166,12 @@ def index_decode(index_encode):
     return ''.join(res)
 
 if __name__ == '__main__':
-    from CONFIG2TRAIN.config import opt
+    # from CONFIG2TRAIN.config import opt
     # from CONFIG2TRAIN.seq2seq import opt
     # from CONFIG2TRAIN.seq2seq_attn import opt
     # from CONFIG2TRAIN.attention import opt
+    # from CONFIG2TRAIN.char_100_max_length_50 import opt
+    from CONFIG2TRAIN.char_100_max_length_50_fliter_b_i import opt
 
     from eval import Ev
     import time
@@ -185,27 +187,41 @@ if __name__ == '__main__':
     cudnn.benchmark = True
     cudnn.deterministic = True
     opt.num_gpu = torch.cuda.device_count()
-    flag = False
+    flag = True
     print(f"{flag}")
 
-
+    log = open("Predict.csv", "w")
     table_ocr_txt_path = "../table_ocr/filter_val.txt"
     with open(table_ocr_txt_path, "r") as f:
         gt_lines = f.readlines()
     tq = tqdm.tqdm(gt_lines)
     for index, line in enumerate(tq):
         name, value = line.strip("\n").split("\t")
+        # if name != 'PMC4219599_004_00_00044.png':
+        #     continue
         filename = osp.join("../table_ocr/data/val", name)
         im = Image.open(filename)
         start = time.time()
         pre,conf = run(im)
         if flag:
-            value = re.sub("<b>", "粗", value)
-            value = re.sub("</b>", "细", value)
-            value = re.sub("<i>", "斜", value)
-            value = re.sub("</i>", "直", value)
+            # value = re.sub("<b>", "粗", value)
+            # value = re.sub("</b>", "细", value)
+            # value = re.sub("<i>", "斜", value)
+            # value = re.sub("</i>", "直", value)
+            value = re.sub("<b>", "", value)
+            value = re.sub("</b>", "", value)
+            value = re.sub("<i>", "", value)
+            value = re.sub("</i>", "", value)
+            value = re.sub("</sup>", "", value)
+            value = re.sub("<sup>", "", value)
+            value = re.sub("<sub>", "", value)
+            value = re.sub("</sub>", "", value)
+
             pre = re.sub("♡", "", pre)
             pre = re.sub("卐", "", pre)
+            # pre = "adasd_{1234}asdas"
+            pre = re.sub("(_{)(.*?)(})", r"\2", pre)
+            pre = re.sub("(\^{)(.*?)(})", r"\2", pre)
         else:
             pre = index_decode(pre)
         ev.count(value, pre)
@@ -214,5 +230,6 @@ if __name__ == '__main__':
         res = ev.socre()
         tq.set_description(f"char:{res['char_acc']*100:.3f} | seq:{res['seq_acc']*100:.3f} | {value==pre}")
         if value != pre:
-            logging.info(f"{value} : {pre} : {distance.levenshtein(pre, value)} : filename:{filename}")
-        
+            # logging.info(f"{value} : {pre} : {distance.levenshtein(pre, value)} : filename:{filename}")
+            log.write(f"{value},{pre},{distance.levenshtein(pre, value)},{name}\n")
+    log.write(f"{ev.socre()},最大的编辑距离：{ev.max_distance},总距离：{ev.max_length}\n")
